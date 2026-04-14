@@ -1,0 +1,14 @@
+langchain
+langchain-community
+langchain-openai
+langchain-groq
+langchain-huggingface
+langchain-core
+mysql-connector-python
+sqlalchemy
+python-dotenv
+streamlit
+langchain-google-genai
+huggingface_hub
+langchain-mistralai
+langgraph
