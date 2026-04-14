@@ -1,98 +1,106 @@
-# Restaurant Insights Assistant (OOP + LangGraph + Streamlit)
+# Restaurant Insights Assistant
 
-This implementation was refactored from notebook-style code into a professional multi-file Python design.
+An AI-powered restaurant analytics assistant built with **LangChain**, **LangGraph**, and **Streamlit**.
 
-## What was done
+It converts natural-language business questions into SQL over a restaurant sales CSV, validates result relevance, and returns structured executive insights.
 
-- Split logic into multiple modules under `Restaurant_Sector/assistant`:
-  - `config.py` -> assistant configuration
-  - `providers.py` -> OpenAI primary and Groq/OpenRouter fallback router
-  - `warehouse.py` -> CSV to in-memory SQLite loader and query executor
-  - `formatters.py` -> payload formatters (`JSON` and `TOON`)
-  - `service.py` -> main orchestration service (`RestaurantInsightsAssistant`)
-  - `graph.py` -> LangGraph workflow compile and image export
-- Added CLI entrypoint: `Restaurant_Sector/restaurant_insights_assistant.py`.
-- Added Streamlit UI: `Restaurant_Sector/streamlit_app.py`.
-- Added workflow export script: `Restaurant_Sector/export_workflow.py`.
-- Saved LangGraph image to: `Restaurant_Sector/assets/langgraph_workflow.png`.
+## Live App
 
-## LLM provider order
+- Streamlit Cloud URL: `https://restaurantinsightsassistant.streamlit.app/`
 
-1. OpenAI (primary)
-2. Groq (fallback)
-3. OpenRouter (fallback)
+## Project Structure
 
-The router attempts providers in order for both SQL planning and final analysis.
+- `Restaurant_Sector/assistant/` - core assistant modules
+  - `config.py` - configuration dataclass
+  - `providers.py` - provider router with fallback chain
+  - `warehouse.py` - CSV to in-memory SQLite + query execution
+  - `formatters.py` - JSON/TOON payload formatters
+  - `service.py` - main orchestration service
+  - `graph.py` - LangGraph workflow + image export
+- `Restaurant_Sector/streamlit_app.py` - Streamlit app entrypoint
+- `Restaurant_Sector/restaurant_insights_assistant.py` - CLI entrypoint
+- `Restaurant_Sector/export_workflow.py` - workflow image export utility
 
-## Structured outputs and TOON
+## Key Features
 
-- SQL planning output schema: `SQLPlan`
-- Final analysis schema: `InsightReport`
-- Intermediate data packet schema: `QueryPayload`
-- Payload delivery mode:
-  - `JSON` when payload size is normal
-  - `TOON` (Token Optimized Object Notation) when JSON is large
+- Multi-provider LLM routing with fallback chain
+- Structured planning (`AnalysisPlan`) before SQL generation
+- SQL relevance loop (up to 3 attempts) with feedback refinement
+- Compact payload mode (`TOON`) for large result sets
+- Business-focused structured outputs (`InsightReport`)
+- LangGraph workflow visualization
+- Sidebar graph viewer toggle (graph loads only when selected)
+- Optional **LangChain tracing** (auto-enabled when `LANGCHAIN_API_KEY` is present)
 
-TOON is a compact line format designed to reduce prompt tokens while preserving structured content.
+## Environment Variables
 
-## Accuracy guardrails added
+Set at least one provider key:
 
-- Date boundary enforcement uses dataset min/max date from the loaded CSV.
-- The assistant is instructed to never reason beyond the available range.
-- LLM-driven planning step creates an analysis plan first (objective, metric, dimensions, period logic).
-- ReAct-style refinement loop validates SQL relevance and regenerates SQL with feedback up to 3 iterations.
-- For driver questions, planner is instructed to include `Purchase_Type` and `Payment_Method` when needed.
+- `OPENAI_API_KEY` (recommended primary)
+- `GROQ_API_KEY` (optional fallback)
+- `OPENROUTER_API_KEY` (optional fallback)
 
-## Environment variables
+Optional tracing keys:
 
-Set at least one key (OpenAI strongly recommended):
+- `LANGCHAIN_API_KEY` - enables LangChain/LangSmith tracing automatically
+- `LANGCHAIN_PROJECT` - optional project name (default: `restaurant-sector`)
 
-- `OPENAI_API_KEY`
-- `GROQ_API_KEY`
-- `OPENROUTER_API_KEY`
+## Install
 
-## Run instructions
+```bash
+pip install -r requirements.txt
+```
 
-Install dependencies first (`requirements.txt` / `pyproject.toml`).
+## Run Locally
 
-### 1) CLI mode
+CLI mode:
 
 ```bash
 python Restaurant_Sector/restaurant_insights_assistant.py
 ```
 
-Expected output sections:
-
-- Provider used for SQL generation
-- Provider used for final analysis
-- Generated SQL query
-- Structured payload (`JSON` or `TOON`)
-- Structured insight report
-
-### 2) Streamlit UI
+Streamlit mode:
 
 ```bash
 streamlit run Restaurant_Sector/streamlit_app.py
 ```
 
-Expected UI behavior:
+In the Streamlit sidebar, you can:
 
-- Ask a business question
-- See generated SQL
-- See payload mode and payload body
-- See final insights (`executive_summary`, findings, risks, actions)
-- View workflow image on the right panel
+- use `Graph Viewer` to show/hide the workflow image on demand
 
-### 3) Export LangGraph workflow image
+Export workflow image:
 
 ```bash
 python Restaurant_Sector/export_workflow.py
 ```
 
-Expected result:
+## Streamlit Cloud Deployment
 
-- PNG generated at `Restaurant_Sector/assets/langgraph_workflow.png`
+You can deploy directly from GitHub.
 
-## LangGraph workflow stages
+1. Push the repository to GitHub.
+2. In Streamlit Cloud, select app file:
+   - `Restaurant_Sector/streamlit_app.py`
+3. Add secrets in Streamlit Cloud settings:
+   - `OPENAI_API_KEY`
+   - optional: `GROQ_API_KEY`, `OPENROUTER_API_KEY`
+   - optional tracing: `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`
+4. Ensure `.env` is **not** committed.
 
-`plan_sql -> run_sql -> format_payload -> analyze -> END`
+## Plan and Approach Followed
+
+- Refactored notebook-style logic into modular OOP components (`config`, `providers`, `warehouse`, `formatters`, `service`, `graph`).
+- Built a staged analytics pipeline: question planning -> SQL generation -> SQL execution -> payload formatting -> insight generation.
+- Added a relevance-validation loop so SQL is regenerated with feedback when the first result is incomplete.
+- Kept output structured with typed schemas (`AnalysisPlan`, `SQLPlan`, `RelevanceVerdict`, `InsightReport`) for reliability.
+- Added payload optimization (`JSON` or `TOON`) to control token usage on larger result sets.
+- Exposed app through Streamlit with a clean UI and optional sidebar graph viewer for workflow visualization.
+- Enabled LangChain tracing support (auto-on when `LANGCHAIN_API_KEY` exists) to monitor LLM runs in LangSmith.
+- Deployed to Streamlit Cloud from GitHub with secret-managed API keys.
+
+## Notes
+
+- The assistant enforces dataset date boundaries from the CSV.
+- Revenue is computed as `Price * Quantity`.
+- No cost column exists; profit/loss interpretation is revenue delta only.
